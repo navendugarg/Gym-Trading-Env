@@ -1,5 +1,5 @@
-import sys  
-sys.path.append("./src")
+# import sys
+# sys.path.append("./src") # Avoid modifying sys.path. Install the package instead (e.g., pip install -e .)
 
 import pandas as pd
 from gym_trading_env.renderer import Renderer

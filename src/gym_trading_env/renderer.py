@@ -1,66 +1,69 @@
-from flask import Flask, render_template, jsonify, make_response
-
-from pyecharts.globals import CurrentConfig
-from pyecharts import options as opts
-from pyecharts.charts import Bar
-
-from .utils.charts import charts
-from pathlib import Path 
-import glob
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse, HTMLResponse
+import uvicorn
 import pandas as pd
+import json
+from pathlib import Path
+import glob
+from .utils.charts import charts  # Assuming charts returns a Plotly figure
 
+class Renderer:
+    """Handles rendering of trading data visualizations using FastAPI and Plotly."""
 
-class Renderer():
-    def __init__(self, render_logs_dir):
-        self.app = Flask(__name__, static_folder="./templates/")
-        # self.app.debug = True
-        self.app.config["EXPLAIN_TEMPLATE_LOADING"] = True
-        self.df = None
+    def __init__(self, render_logs_dir: str):
+        """Initialize the Renderer with the directory containing render logs."""
+        self.app = FastAPI()
+        self.templates = Jinja2Templates(directory="templates")
         self.render_logs_dir = render_logs_dir
-        self.metrics = [
-            {
-                "name": "Market Return",
-                "function" : lambda df : f"{(df['close'].iloc[-1] / df['close'].iloc[0] - 1)*100:0.2f}%",
-            },
-            {
-                "name": "Portfolio Return",
-                "function" : lambda df : f"{ (df['portfolio_valuation'].iloc[-1] / df['portfolio_valuation'].iloc[0] - 1)*100:0.2f}%"
-            },
-        ]
+        self.metrics = []
         self.lines = []
-    
-    def add_metric(self, name, function):
-        self.metrics.append(
-            {"name": name, "function":function}
-        )
-    def add_line(self, name, function, line_options = None):
-        self.lines.append(
-            {"name": name, "function":function}
-        )
-        if line_options is not None: self.lines[-1]["line_options"] = line_options
-    def compute_metrics(self, df):
-        for metric in self.metrics:
-            metric["value"] = metric["function"](df)
-    def run(self,):
-        @self.app.route("/")
-        def index():
+
+    def add_metric(self, name: str, function: callable) -> None:
+        """Add a custom metric to be computed and displayed."""
+        self.metrics.append({"name": name, "function": function})
+
+    def add_line(self, name: str, function: callable, line_options: dict = None) -> None:
+        """Add a custom line to the chart."""
+        line = {"name": name, "function": function}
+        if line_options is not None:
+            line["line_options"] = line_options
+        self.lines.append(line)
+
+    def load_data(self, name: str = None) -> pd.DataFrame:
+        """Load data from the specified render log or the latest one if not specified."""
+        if not name:
+            render_pathes = glob.glob(f"{self.render_logs_dir}/*.pkl")
+            if not render_pathes:
+                raise HTTPException(status_code=404, detail="No data available")
+            name = Path(render_pathes[-1]).name
+        try:
+            return pd.read_pickle(f"{self.render_logs_dir}/{name}")
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="File not found")
+
+    def compute_metrics(self, df: pd.DataFrame) -> list:
+        """Compute all metrics for the given DataFrame."""
+        return [{"name": m["name"], "value": m["function"](df)} for m in self.metrics]
+
+    def run(self) -> None:
+        """Run the FastAPI application."""
+        @self.app.get("/", response_class=HTMLResponse)
+        async def index(request: Request):
             render_pathes = glob.glob(f"{self.render_logs_dir}/*.pkl")
             render_names = [Path(path).name for path in render_pathes]
-            return render_template('index.html', render_names = render_names)
+            return self.templates.TemplateResponse("index.html", {"request": request, "render_names": render_names})
 
-        @self.app.route("/update_data/<name>")
-        def update(name = None):
-            if name is None or name == "":
-                render_pathes = glob.glob(f"{self.render_logs_dir}/*.pkl")
-                name = Path(render_pathes[-1]).name
-            self.df = pd.read_pickle(f"{self.render_logs_dir}/{name}")
-            chart = charts(self.df, self.lines)
-            return chart.dump_options_with_quotes()
+        @self.app.get("/update_data")
+        async def update(name: str = None):
+            df = self.load_data(name)
+            chart = charts(df, self.lines)
+            return JSONResponse(content=json.loads(chart.to_json()))
 
-        @self.app.route("/metrics")
-        def get_metrics():
-            self.compute_metrics(self.df)
-            return jsonify([{'name':metric['name'], 'value':metric['value']} for metric in self.metrics])
+        @self.app.get("/metrics")
+        async def get_metrics(name: str = None):
+            df = self.load_data(name)
+            metrics = self.compute_metrics(df)
+            return JSONResponse(content=metrics)
 
-        self.app.run()
-
+        uvicorn.run(self.app, host="0.0.0.0", port=8000)

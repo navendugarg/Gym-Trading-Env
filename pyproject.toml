@@ -7,18 +7,42 @@ name = "gym-trading-env"
 version = "0.3.2"
 license = {file = "LICENSE.txt"}
 authors = [
-  { name="Clement Perroud", email="clement.perroud.pro@gmail.com" },
+  { name="Navendu Garg", email="navendugarg@gmail.com" },
 ]
 description = "A simple, easy, customizable Open IA Gym environments for trading."
 readme = "README.md"
-requires-python = ">=3.7"
+# Updated minimum Python version to align with numpy>=2.0.0 requirement
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
+    # Removed Python 3.8 classifier
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13", # Add Python 3.13 classifier
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["pandas>=1.5.3", "numpy>=1.21.1", "gymnasium>=0.28.1", "flask>=2.2.3", "pyecharts>=2.0.2", "ccxt==3.0.59", "nest_asyncio"]
+dependencies = [
+    # Updated minimum pandas version for Python 3.13 compatibility
+    "pandas>=2.2.0",
+    # Updated minimum numpy version for Python 3.13 compatibility
+    "numpy>=2.0.0",
+    # Updated minimum gymnasium version
+    "gymnasium>=0.29.1",
+    # Updated minimum flask version
+    "flask>=3.0.0",
+    # Updated minimum plotly version
+    "plotly>=5.22.0",
+    # Updated minimum ccxt version
+    "ccxt>=4.3.0",
+    # Updated minimum nest_asyncio version
+    "nest_asyncio>=1.6.0",
+    "fastapi>=0.115.12",
+    "uvicorn>=0.34.2",
+]
 
 [project.urls]
-"Homepage" = "https://github.com/ClementPerroud/Gym-Trading-Env"
-"Bug Tracker" = "https://github.com/ClementPerroud/Gym-Trading-Env/issues"
+"Homepage" = "https://github.com/navendugarg/Gym-Trading-Env"
+"Bug Tracker" = "https://github.com/navendugarg/Gym-Trading-Env/issues"

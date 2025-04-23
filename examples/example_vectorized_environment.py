@@ -1,4 +1,4 @@
-import sys  
+import sys
 sys.path.append("./src")
 
 import pandas as pd
@@ -8,22 +8,44 @@ import datetime
 
 import gym_trading_env
 from gym_trading_env.downloader import download
+# Import ccxt errors to catch specific exceptions
+from ccxt.base.errors import ExchangeNotAvailable
 
 
+# --- Download Data ---
+# Attempt to download data, handling potential location restrictions
+try:
+    # Try using a different exchange like bitfinex2
+    # Note: Geographic restrictions can apply to other exchanges too.
+    # You might need to find an exchange accessible from your location or use pre-downloaded data.
+    download(
+        exchange_names = ["bitfinex2"], # Changed from binance
+        symbols= ["BTC/USDT"],
+        timeframe= "30m",
+        dir = "examples/data",
+        since= datetime.datetime(year= 2019, month= 1, day=1),
+    )
+except ExchangeNotAvailable as e:
+    print(f"\nError downloading data: {e}")
+    print("This often means the exchange restricts access from your location.")
+    print("Consider trying a different exchange or using pre-downloaded data if available.\n")
+    # Exit or handle as appropriate if data download fails
+    sys.exit(1) # Exit the script if download fails
+except Exception as e:
+    print(f"\nAn unexpected error occurred during download: {e}\n")
+    sys.exit(1)
 
-download(
-    exchange_names = ["binance"],
-    symbols= ["BTC/USDT"],
-    timeframe= "30m",
-    dir = "examples/data",
-    since= datetime.datetime(year= 2019, month= 1, day=1),
-)
 
-# Import your datas
-df = pd.read_pickle("examples/data/binance-BTCUSDT-30m.pkl")
-df.sort_index(inplace= True)
-df.dropna(inplace= True)
-df.drop_duplicates(inplace=True)
+# --- Load Data ---
+# Import your datas - updated filename for bitfinex2
+try:
+    df = pd.read_pickle("examples/data/bitfinex2-BTCUSDT-30m.pkl") # Updated filename
+    df.sort_index(inplace= True)
+    df.dropna(inplace= True)
+    df.drop_duplicates(inplace=True)
+except FileNotFoundError:
+    print("Error: Data file not found. Make sure the download step was successful and the filename is correct.")
+    sys.exit(1)
 
 # Generating features
 # WARNING : the column names need to contain keyword 'feature' !
